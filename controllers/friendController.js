@@ -1,6 +1,6 @@
 // controllers/friendController.js
 const Player = require("../models/Player");
-const Friend = require("../models/Friend");
+const Friend = require("../models/friend");
 const Notification = require("../models/Notification");
 const PlayerActivity = require("../models/PlayerActivity");
 
