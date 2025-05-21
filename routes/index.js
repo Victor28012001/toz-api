@@ -11,6 +11,9 @@ const friendRoutes = require("./friendRoutes");
 const notificationRoutes = require("./notificationRoutes");
 const chatRoutes = require("./chatRoutes");
 const nftRoutes = require("../controllers/nftController");
+const gameTemplateRoutes = require('./gameTemplateRoutes');
+const gameInstanceRoutes = require('./gameInstanceRoutes');
+
 
 module.exports = function registerRoutes(app) {
   app.use("/api/players", playerRoutes);
@@ -26,4 +29,6 @@ module.exports = function registerRoutes(app) {
   app.use("/api/notifications", notificationRoutes);
   app.use("/api/chat", chatRoutes);
   app.use("/api/nft", nftRoutes);
+  app.use('/api/game-templates', gameTemplateRoutes);
+  app.use('/api/game-instances', gameInstanceRoutes);
 };

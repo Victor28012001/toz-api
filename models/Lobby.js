@@ -10,6 +10,8 @@ const LobbySchema = new mongoose.Schema({
   gameStarted: { type: Boolean, default: false },
   gameResult: { type: String, default: '' },  // Save game result: 'win', 'lose', etc.
   gameId: { type: mongoose.Schema.Types.ObjectId, ref: 'Game' },
+  admin: String,
+  status: { type: String, enum: ['waiting', 'started'], default: 'waiting' },
   gameSettings: { type: Object, default: {} }, // Store game-specific settings
   endedAt: { type: Date, default: null },
   gameStartedAt: { type: Date, default: null },

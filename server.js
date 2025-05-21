@@ -12,6 +12,8 @@ const registerRoutes = require("./routes");
 const registerSocketHandlers = require("./socket");
 const Message = require("./models/Message");
 
+const matchmaking = require("./socketHandlers/lobby");
+
 const app = express();
 const server = http.createServer(app);
 const io = socketIo(server, {
@@ -27,7 +29,7 @@ app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 app.use(
   cors({
-    origin: ["http://127.0.0.1:5502", "http://127.0.0.1:5500", "http://127.0.0.1:5501", "https://toz-app.vercel.app"],
+    origin: ["http://127.0.0.1:5502", "http://localhost:5173", "http://127.0.0.1:5500", "http://127.0.0.1:5501", "https://toz-app.vercel.app"],
     methods: ["GET", "POST", "PUT", "DELETE"],
     credentials: true,
   })
@@ -122,6 +124,27 @@ app.all("*", (req, res) => {
   res.status(404).send("Route not found");
 });
 
+// Accurate manual route logger
+app._router.stack.forEach((middleware) => {
+  if (middleware.route) {
+    const methods = Object.keys(middleware.route.methods)
+      .map(m => m.toUpperCase())
+      .join(', ');
+    console.log(`${methods} ${middleware.route.path}`);
+  } else if (middleware.name === 'router') {
+    middleware.handle.stack.forEach((handler) => {
+      const route = handler.route;
+      if (route) {
+        const methods = Object.keys(route.methods)
+          .map(m => m.toUpperCase())
+          .join(', ');
+        console.log(`${methods} ${route.path}`);
+      }
+    });
+  }
+});
+
+
 // Show all routes in console as table
 logRoutes(app);
 
@@ -130,6 +153,7 @@ registerSocketHandlers(io);
 
 // Start server
 const PORT = process.env.PORT || 3000;
+
 server.listen(PORT, "0.0.0.0", () =>
   console.log(`✅ Server running on port ${PORT}`)
 );

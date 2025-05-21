@@ -1,8 +1,7 @@
-const mongoose = require('mongoose');
+const mongoose = require("mongoose");
 
-
-const Status = ['Open', 'In Progress', 'Closed'];
-const Privacy = ['Public', 'Private'];
+const Status = ["Open", "In Progress", "Closed"];
+const Privacy = ["Public", "Private"];
 
 // Define the schema for a game session
 const gameSchema = new mongoose.Schema({
@@ -11,27 +10,29 @@ const gameSchema = new mongoose.Schema({
     required: true,
     unique: true,
   },
-  name: { type: String, required: true },  // Name of the game
+  name: { type: String, required: true }, // Name of the game
   description: { type: String },
-  rules: { type: String }, 
+  rules: { type: String },
   initializedBy: {
     type: mongoose.Schema.Types.ObjectId, // Assuming playerId is the ObjectId of a player
-    ref: 'Player', // Reference to the Player model
-    required: true
+    ref: "Player", // Reference to the Player model
+    required: true,
   },
   maxPlayers: { type: Number, default: 4 }, // Maximum players allowed in the game
-  players: [{
-    playerId: { 
-      type: mongoose.Schema.Types.ObjectId, 
-      ref: 'Player',
-      required: true 
+  players: [
+    {
+      playerId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Player",
+        required: true,
+      },
+      score: {
+        type: Number,
+        required: true,
+        default: 0,
+      },
     },
-    score: { 
-      type: Number, 
-      required: true,
-      default: 0 
-    }
-  }],
+  ],
   winner: {
     type: String, // Player ID of the winner
     default: null,
@@ -50,23 +51,30 @@ const gameSchema = new mongoose.Schema({
   },
   game_status: {
     type: String,
-    default: 'Open', // Default status when a game is created
+    default: "Open", // Default status when a game is created
     enum: Status, // Possible game statuses
   },
 
   game_privacy: {
     type: String,
-    default: 'Private', // Default status when a game is created
+    default: "Private", // Default status when a game is created
     enum: Privacy, // Possible game statuses
   },
 
-  scores: [{
-    playerId: { type: mongoose.Schema.Types.ObjectId, ref: 'Player' },
-    score: { type: Number, default: 0 }
-  }],
+  developer: String,
+  type: { type: String, enum: ["single", "multi"], default: "single" },
+  gameUrl: String,
+  imageUrl: String,
+
+  scores: [
+    {
+      playerId: { type: mongoose.Schema.Types.ObjectId, ref: "Player" },
+      score: { type: Number, default: 0 },
+    },
+  ],
   creationTime: { type: Date, default: Date.now },
-    startTime: { type: Date },
-    endTime: { type: Date },
+  startTime: { type: Date },
+  endTime: { type: Date },
 });
 
 // Method to update the winner
@@ -83,7 +91,7 @@ gameSchema.methods.updatePlayerScore = function (playerId, score) {
     player.score = score;
     return this.save();
   } else {
-    throw new Error('Player not found');
+    throw new Error("Player not found");
   }
 };
 
@@ -94,10 +102,10 @@ gameSchema.methods.addPlayer = function (playerId) {
     this.joinedPlayersCount += 1;
     return this.save();
   } else {
-    throw new Error('Player already joined');
+    throw new Error("Player already joined");
   }
 };
 
 // Create and export the Game model
-const Game = mongoose.model('Game', gameSchema);
+const Game = mongoose.model("Game", gameSchema);
 module.exports = Game;

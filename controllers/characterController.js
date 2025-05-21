@@ -432,7 +432,7 @@ exports.createCharacter = async (req, res) => {
 
   try {
     // Find the player by ID to get the wallet address
-    const player = await findById(playerId);
+    const player = await Player.findById(playerId);
     if (!player) {
       return res.status(404).json({ message: "Player not found" });
     }
@@ -479,7 +479,7 @@ exports.createCharacter = async (req, res) => {
 
     if (result.success) {
       // Update the player's NFT mint address
-      await findOneAndUpdate(
+      await Player.findOneAndUpdate(
         { walletAddress: playerWallet }, // Find player by wallet address
         { nftMintAddress: result.mintAddress }, // Update with mint address
         { new: true } // Return the updated document
