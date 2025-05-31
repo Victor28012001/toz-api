@@ -2,6 +2,8 @@ const express = require('express');
 const { createCharacter, getCharacter, purchaseAndMintCharacter, purchaseAndTransferCharacter, listCharacter, modifyListPrice, buyCharacter, fetchCharacters, fetchPlayersCharacters, mintCharacterAsNFT, fetchPlayerNFTAssets } = require('../controllers/characterController');
 const router = express.Router();
 const characterController = require('../controllers/characterController');
+const multer = require("multer");
+const upload = multer({ storage: multer.memoryStorage() }); // or use diskStorage
 
 // router.post('/characters', createCharacter);
 router.get("/nfts/:walletAddress", async (req, res) => {

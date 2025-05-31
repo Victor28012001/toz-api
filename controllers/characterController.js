@@ -4,6 +4,7 @@ const { findById, findOneAndUpdate, findOne } = require("../models/Player");
 const { addCharacter } = require("./playerController");
 const { transferV1 } = require("@metaplex-foundation/mpl-token-metadata");
 const wallet = require("../keypair.json");
+const { pinFileToIPFS } = require("../utils/ipfs");
 const {
   Connection,
   PublicKey,
@@ -415,9 +416,89 @@ exports.fetchPlayerNFTAssets = async (walletAddress) => {
   }
 };
 
+// exports.createCharacter = async (req, res) => {
+//   const {
+//     name,
+//     health,
+//     strength,
+//     attack,
+//     speed,
+//     super_power,
+//     price,
+//     playerId,
+//     owner,
+//     mintAddress,
+//     avatarUrl, // base64 string
+//     model, // base64 string
+//   } = req.body;
+
+//   try {
+//     if (!avatarUrl || !model) {
+//       return res.status(400).json({ message: "Missing avatar or model data" });
+//     }
+
+//     const player = await Player.findById(playerId);
+//     if (!player) {
+//       return res.status(404).json({ message: "Player not found" });
+//     }
+
+//     // Decode base64 data and upload to IPFS
+//     const bufferFromBase64 = (base64String) => {
+//       const base64Data = base64String.split(",")[1]; // Remove the data URL prefix
+//       return Buffer.from(base64Data, "base64");
+//     };
+
+//     const avatarBuffer = bufferFromBase64(avatarUrl);
+//     const modelBuffer = bufferFromBase64(model);
+
+//     const avatarIPFSUrl = await pinFileToIPFS(avatarBuffer, "avatar.png"); // Use appropriate file name
+//     const modelIPFSUrl = await pinFileToIPFS(modelBuffer, "model.glb");
+
+//     const character = new Character({
+//       name,
+//       health,
+//       strength,
+//       attack,
+//       speed,
+//       super_power,
+//       price,
+//       playerId,
+//       avatarUrl: avatarIPFSUrl,
+//       owner,
+//       mintAddress,
+//       file_url: modelIPFSUrl,
+//     });
+
+//     await character.save();
+
+//     const result = await mintCharacterAsNFT(player.walletAddress, character);
+
+//     if (result.success) {
+//       await Player.findOneAndUpdate(
+//         { walletAddress: player.walletAddress },
+//         { nftMintAddress: result.mintAddress },
+//         { new: true }
+//       );
+
+//       return res.status(200).json({
+//         success: true,
+//         mintAddress: result.mintAddress,
+//         avatarUrl: avatarIPFSUrl,
+//         modelUrl: modelIPFSUrl,
+//       });
+//     } else {
+//       throw new Error("NFT minting failed");
+//     }
+//   } catch (error) {
+//     console.error("Create Character Error:", error);
+//     res.status(400).json({ message: error.message });
+//   }
+// };
+
 exports.createCharacter = async (req, res) => {
   const {
     name,
+    description,
     health,
     strength,
     attack,
@@ -425,78 +506,97 @@ exports.createCharacter = async (req, res) => {
     super_power,
     price,
     playerId,
-    avatarUrl,
-    owner,
-    mintAddress,
+    avatarUrl, // base64
+    model,     // base64
+    animations = [],
   } = req.body;
 
   try {
-    // Find the player by ID to get the wallet address
+    if (!avatarUrl || !model) {
+      return res.status(400).json({ message: "Missing avatar or model data" });
+    }
+
     const player = await Player.findById(playerId);
     if (!player) {
       return res.status(404).json({ message: "Player not found" });
     }
 
+    // Convert base64 to Buffer
+    const bufferFromBase64 = (base64String) => {
+      const base64Data = base64String.split(",")[1]; // remove data:image/png;base64, etc.
+      return Buffer.from(base64Data, "base64");
+    };
+
+    const avatarBuffer = bufferFromBase64(avatarUrl);
+    const modelBuffer = bufferFromBase64(model);
+
+    // Upload to IPFS
+    const avatarIPFSUrl = await pinFileToIPFS(avatarBuffer, "avatar.png");
+    const modelIPFSUrl = await pinFileToIPFS(modelBuffer, "model.glb");
+
+    // Generate symbol from name
+    const symbol = name
+      .split(/[\s-_]+/) // split on space, dash or underscore
+      .map((word) => word.charAt(0).toUpperCase())
+      .join("");
+
+    // Generate metadata
+    const uniqueCharacterName = `${name}-${Date.now()}`;
+    const metadata = {
+      name: uniqueCharacterName,
+      detail: description,
+      symbol,
+      image: avatarIPFSUrl,
+      file_url: modelIPFSUrl,
+      animations,
+    };
+
+    const metadataUri = await uploadMetadata(metadata);
+    console.log(`Metadata uploaded successfully: ${metadataUri}`);
+
+    const mintAddress = await mintNft(metadataUri, metadata);
+    if (!mintAddress) throw new Error(`Failed to mint NFT for ${name}`);
+
+    // Create character object
     const character = new Character({
       name,
+      description,
       health,
       strength,
       attack,
       speed,
       super_power,
       price,
-      playerId,
-      avatarUrl,
-      owner,
+      avatarUrl: avatarIPFSUrl,
+      file_url: modelIPFSUrl,
+      playerId: player._id,
+      owner: player._id,
       mintAddress,
+      symbol,
+      animations,
     });
 
     await character.save();
 
-    // Assuming player.walletAddress contains the wallet address
-    const playerWallet = player.walletAddress;
-    const addCharacterReq = {
-      body: { walletAddress: player.walletAddress, characterId: character._id },
-    };
-    await addCharacter(addCharacterReq, res);
+    // Update player with minted NFT address
+    await Player.findOneAndUpdate(
+      { _id: player._id },
+      { nftMintAddress: mintAddress },
+      { new: true }
+    );
 
-    const result = await mintCharacterAsNFT(playerWallet, character); // Example function for minting
-
-    await Character.create({
-      name: character.name,
-      avatarUrl: character.avatarUrl,
-      health: character.health,
-      strength: character.strength,
-      attack: character.attack,
-      speed: character.speed,
-      super_power: character.super_power,
-      price: character.price,
-      // owner: playerWallet, // Link the NFT to the owner's wallet address
-      owner: character.owner, // Link the NFT to the owner's wallet address
-      // mintAddress, // Store the mint address of the NFT
-      mintAddress: character.mintAddress, // Store the mint address of the NFT
+    res.status(200).json({
+      success: true,
+      mintAddress,
+      avatarUrl: avatarIPFSUrl,
+      modelUrl: modelIPFSUrl,
     });
-
-    if (result.success) {
-      // Update the player's NFT mint address
-      await Player.findOneAndUpdate(
-        { walletAddress: playerWallet }, // Find player by wallet address
-        { nftMintAddress: result.mintAddress }, // Update with mint address
-        { new: true } // Return the updated document
-      );
-
-      return {
-        success: true,
-        mintAddress: result.mintAddress,
-        signature: result.signature,
-      };
-    } else {
-      throw new Error("NFT minting failed");
-    }
   } catch (error) {
+    console.error("Create Character Error:", error);
     res.status(400).json({ message: error.message });
   }
 };
+
 
 exports.getCharacter = async (req, res) => {
   try {
@@ -547,7 +647,7 @@ exports.purchaseAndMintCharacter = async (req, res) => {
           character.name
         }-${formattedMonika.replace(/\s+/g, "-")}`;
         const symbol = character.name
-          .split(" ")
+          .split(/[\s-_]+/)
           .map((word) => word.charAt(0).toUpperCase())
           .join("");
 

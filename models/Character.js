@@ -22,7 +22,7 @@ const superPowerEnum = {
 const characterSchema = new mongoose.Schema({
   name: { type: String, required: true },
   avatarUrl: { type: Object, required: true },
-  symbol: { type: String, required: true },
+  symbol: { type: String, required: false },
   description: String,
   health: { type: Number, required: true },
   strength: { type: Number, required: true },
@@ -45,7 +45,7 @@ const characterSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: "Player",
     required: true,
-  }, // Reference to Player
+  },
   // owner: { type: String, required: false },
   mintAddress: { type: String, required: true }, // Mint address of the NFT
   // playerId: { type: mongoose.Schema.Types.ObjectId, ref: 'Player', required: true },
