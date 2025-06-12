@@ -1,5 +1,5 @@
 const express = require('express');
-const { createCharacter, getCharacter, purchaseAndMintCharacter, purchaseAndTransferCharacter, listCharacter, modifyListPrice, buyCharacter, fetchCharacters, fetchPlayersCharacters, mintCharacterAsNFT, fetchPlayerNFTAssets } = require('../controllers/characterController');
+const { createCharacter, getCharacter, purchaseAndMintCharacter, purchaseAndTransferCharacter, listCharacter, modifyListPrice, buyCharacter, fetchCharacters, fetchAnimations, fetchPlayersCharacters, mintCharacterAsNFT, fetchPlayerNFTAssets } = require('../controllers/characterController');
 const router = express.Router();
 const characterController = require('../controllers/characterController');
 const multer = require("multer");
@@ -38,9 +38,10 @@ router.post('/create', createCharacter);
 router.post('/list', listCharacter);
 router.post('/modify-price', modifyListPrice);
 router.post('/buy', buyCharacter);
-router.get('/:id?', fetchCharacters);
+router.get('/animations', fetchAnimations);
 router.get('/players/:playerId/characters', fetchPlayersCharacters);
 router.put('/:characterId', characterController.updateCharacter);
+router.get('/:id?', fetchCharacters);
 
   
 

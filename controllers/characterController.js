@@ -20,6 +20,8 @@ const {
 const axios = require("axios");
 const FormData = require("form-data");
 const fs = require("fs");
+const PINATA_URL = 'https://api.pinata.cloud/data/pinList';
+
 
 const {
   TOKEN_PROGRAM_ID,
@@ -45,6 +47,7 @@ const {
 } = require("@metaplex-foundation/umi");
 const { mockStorage } = require("@metaplex-foundation/umi-storage-mock");
 const { existsSync, readFileSync } = require("fs");
+const { v4: uuidv4 } = require("uuid");
 
 const RPC = "https://api.devnet.solana.com";
 const umi = createUmi(RPC);
@@ -129,21 +132,73 @@ const uploadToPinata = async (filePath, fileName) => {
   }
 };
 
+// const uploadMetadata = async (nftDetail) => {
+//   try {
+//     // Construct files array
+//     const files = [
+//       {
+//         type: "model/gltf-binary",
+//         uri: `https://aquamarine-working-thrush-698.mypinata.cloud/ipfs/${nftDetail.file_url}`,
+//       }, // Character Model
+//       {
+//         type: nftDetail.imgType,
+//         uri: `https://aquamarine-working-thrush-698.mypinata.cloud/ipfs/${nftDetail.image}`,
+//       }, // Character Image
+//       ...nftDetail.animations.map((anim) => ({
+//         type: "application/octet-stream",
+//         uri: `https://aquamarine-working-thrush-698.mypinata.cloud/ipfs/${anim.file_url}`,
+//         name: anim.name,
+//       })),
+//     ];
+
+//     const metadata = {
+//       name: nftDetail.name,
+//       description: nftDetail.detail,
+//       image: `https://aquamarine-working-thrush-698.mypinata.cloud/ipfs/${nftDetail.image}`,
+//       symbol: nftDetail.symbol,
+//       seller_fee_basis_points: 500,
+//       attributes: nftDetail.attributes,
+//       properties: {
+//         files,
+//       },
+//     };
+
+//     const metadataFilePath = `metadata_${Date.now()}.json`;
+//     fs.writeFileSync(
+//       metadataFilePath,
+//       JSON.stringify(metadata, null, 2),
+//       "utf8"
+//     );
+
+//     const metadataUri = await uploadToPinata(
+//       metadataFilePath,
+//       `metadata_${Date.now()}.json`
+//     );
+//     console.log("Metadata uploaded successfully:", metadataUri);
+
+//     fs.unlinkSync(metadataFilePath); // Delete local file after upload
+//     return metadataUri;
+//   } catch (error) {
+//     console.error("Error uploading metadata:", error);
+//     throw error;
+//   }
+// };
+
 const uploadMetadata = async (nftDetail) => {
   try {
-    // Construct files array
+    // Construct files array without re-wrapping URLs
     const files = [
       {
         type: "model/gltf-binary",
-        uri: `https://aquamarine-working-thrush-698.mypinata.cloud/ipfs/${nftDetail.file_url}`,
-      }, // Character Model
+        uri: nftDetail.file_url, // already a full URL
+      },
       {
         type: nftDetail.imgType,
-        uri: `https://aquamarine-working-thrush-698.mypinata.cloud/ipfs/${nftDetail.image}`,
-      }, // Character Image
+        uri: nftDetail.image, // already a full URL
+      },
       ...nftDetail.animations.map((anim) => ({
         type: "application/octet-stream",
-        uri: `https://aquamarine-working-thrush-698.mypinata.cloud/ipfs/${anim.file_url}`,
+        uri: anim.file_url, // already a full URL
         name: anim.name,
       })),
     ];
@@ -151,7 +206,7 @@ const uploadMetadata = async (nftDetail) => {
     const metadata = {
       name: nftDetail.name,
       description: nftDetail.detail,
-      image: `https://aquamarine-working-thrush-698.mypinata.cloud/ipfs/${nftDetail.image}`,
+      image: nftDetail.image, // already a full URL
       symbol: nftDetail.symbol,
       seller_fee_basis_points: 500,
       attributes: nftDetail.attributes,
@@ -180,6 +235,7 @@ const uploadMetadata = async (nftDetail) => {
     throw error;
   }
 };
+
 
 async function mintNft(metadataUri, metadata) {
   try {
@@ -333,7 +389,7 @@ exports.fetchPlayerNFTAssets = async (walletAddress) => {
       walletAddress: walletAddress.toLowerCase(),
     }).populate("characters");
 
-    console.log("Player data:", player);
+    // console.log("Player data:", player);
 
     if (!player || !player.characters || player.characters.length === 0) {
       throw new Error(
@@ -416,84 +472,7 @@ exports.fetchPlayerNFTAssets = async (walletAddress) => {
   }
 };
 
-// exports.createCharacter = async (req, res) => {
-//   const {
-//     name,
-//     health,
-//     strength,
-//     attack,
-//     speed,
-//     super_power,
-//     price,
-//     playerId,
-//     owner,
-//     mintAddress,
-//     avatarUrl, // base64 string
-//     model, // base64 string
-//   } = req.body;
 
-//   try {
-//     if (!avatarUrl || !model) {
-//       return res.status(400).json({ message: "Missing avatar or model data" });
-//     }
-
-//     const player = await Player.findById(playerId);
-//     if (!player) {
-//       return res.status(404).json({ message: "Player not found" });
-//     }
-
-//     // Decode base64 data and upload to IPFS
-//     const bufferFromBase64 = (base64String) => {
-//       const base64Data = base64String.split(",")[1]; // Remove the data URL prefix
-//       return Buffer.from(base64Data, "base64");
-//     };
-
-//     const avatarBuffer = bufferFromBase64(avatarUrl);
-//     const modelBuffer = bufferFromBase64(model);
-
-//     const avatarIPFSUrl = await pinFileToIPFS(avatarBuffer, "avatar.png"); // Use appropriate file name
-//     const modelIPFSUrl = await pinFileToIPFS(modelBuffer, "model.glb");
-
-//     const character = new Character({
-//       name,
-//       health,
-//       strength,
-//       attack,
-//       speed,
-//       super_power,
-//       price,
-//       playerId,
-//       avatarUrl: avatarIPFSUrl,
-//       owner,
-//       mintAddress,
-//       file_url: modelIPFSUrl,
-//     });
-
-//     await character.save();
-
-//     const result = await mintCharacterAsNFT(player.walletAddress, character);
-
-//     if (result.success) {
-//       await Player.findOneAndUpdate(
-//         { walletAddress: player.walletAddress },
-//         { nftMintAddress: result.mintAddress },
-//         { new: true }
-//       );
-
-//       return res.status(200).json({
-//         success: true,
-//         mintAddress: result.mintAddress,
-//         avatarUrl: avatarIPFSUrl,
-//         modelUrl: modelIPFSUrl,
-//       });
-//     } else {
-//       throw new Error("NFT minting failed");
-//     }
-//   } catch (error) {
-//     console.error("Create Character Error:", error);
-//     res.status(400).json({ message: error.message });
-//   }
-// };
 
 exports.createCharacter = async (req, res) => {
   const {
@@ -507,7 +486,7 @@ exports.createCharacter = async (req, res) => {
     price,
     playerId,
     avatarUrl, // base64
-    model,     // base64
+    model, // base64
     animations = [],
   } = req.body;
 
@@ -557,8 +536,16 @@ exports.createCharacter = async (req, res) => {
     const mintAddress = await mintNft(metadataUri, metadata);
     if (!mintAddress) throw new Error(`Failed to mint NFT for ${name}`);
 
+    const slugify = (str) =>
+      str
+        .toLowerCase()
+        .replace(/\s+/g, "-")
+        .replace(/[^a-z0-9-]/g, "");
+
     // Create character object
     const character = new Character({
+      id: uuidv4(),
+      stringId: `${slugify(name)}-${Date.now()}`,
       name,
       description,
       health,
@@ -578,6 +565,10 @@ exports.createCharacter = async (req, res) => {
 
     await character.save();
 
+    // Push the character to the player's characters array
+    player.characters.push(character._id);
+    await player.save();
+
     // Update player with minted NFT address
     await Player.findOneAndUpdate(
       { _id: player._id },
@@ -585,6 +576,9 @@ exports.createCharacter = async (req, res) => {
       { new: true }
     );
 
+    console.log(
+      `Character created and minted successfully: ${name} with mint address ${mintAddress}`
+    );
     res.status(200).json({
       success: true,
       mintAddress,
@@ -596,7 +590,6 @@ exports.createCharacter = async (req, res) => {
     res.status(400).json({ message: error.message });
   }
 };
-
 
 exports.getCharacter = async (req, res) => {
   try {
@@ -839,6 +832,67 @@ exports.fetchPlayersCharacters = async (req, res) => {
     res.status(500).send(error);
   }
 };
+
+// exports.fetchAnimations = async (req, res) => {
+//   try {
+//     // Fetch files from Pinata (optional: filter by metadata or file type)
+//     const response = await axios.get(PINATA_URL, {
+//       headers: {
+//         'pinata_api_key': process.env.PINATA_API_KEY,
+//         'pinata_secret_api_key': process.env.PINATA_SECRET_API_KEY,
+//       },
+//       params: {
+//         status: 'pinned',
+//         pageLimit: 100,
+//         // optional: metadata[name], hashContains, etc.
+//       },
+//     });
+
+//     const animations = response.data.rows
+//       .filter(item => item.metadata.name && /\.(fbx|glb)$/i.test(item.metadata.name))
+//       .map(item => ({
+//         name: item.metadata.name,
+//         url: `https://gateway.pinata.cloud/ipfs/${item.ipfs_pin_hash}`,
+//       }));
+
+//     res.json({ success: true, animations });
+//   } catch (error) {
+//     console.error('Error fetching from Pinata:', error.message);
+//     res.status(500).json({ success: false, error: 'Failed to fetch animations.' });
+//   }
+// };
+
+
+exports.fetchAnimations = async (req, res) => {
+  try {
+    const response = await axios.get(PINATA_URL, {
+      headers: {
+        'pinata_api_key': process.env.PINATA_API_KEY,
+        'pinata_secret_api_key': process.env.PINATA_SECRET_API_KEY,
+      },
+      params: {
+        status: 'pinned',
+        pageLimit: 100,
+      },
+    });
+
+    const animations = response.data.rows
+      .filter(item => {
+        const name = item.metadata?.name?.toLowerCase() || "";
+        return name.endsWith(".fbx");
+      })
+      .map(item => ({
+        name: item.metadata.name.replace(/^\/?animations\//, ''), // Clean optional folder prefix
+        url: `https://gateway.pinata.cloud/ipfs/${item.ipfs_pin_hash}`,
+      }));
+
+    res.json({ success: true, animations });
+  } catch (error) {
+    console.error('Error fetching FBX animations from Pinata:', error.message);
+    res.status(500).json({ success: false, error: 'Failed to fetch animations.' });
+  }
+};
+
 
 exports.updateCharacter = async (req, res) => {
   const { characterId } = req.params; // Get characterId from the request parameters
